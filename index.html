@@ -1,0 +1,645 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School SmartPass System</title>
+
+<style>
+:root {
+  --primary: #800000;
+  --success: #16a34a;
+  --background: #f8fafc;
+  --card: #ffffff;
+  --text: #1e293b;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: Arial, sans-serif;
+  background: var(--background);
+  color: var(--text);
+  margin: 0;
+  padding: 15px;
+  display: flex;
+  justify-content: center;
+}
+.container {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px #0001;
+}
+h1, h2 { text-align: center; color: var(--primary); }
+h1 { font-size: 24px; }
+.nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.tab-btn {
+  flex: 1;
+  padding: 12px 5px;
+  border: none;
+  background: #e2e8f0;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.tab-btn.active { background: var(--primary); color: white; }
+.panel { display: none; }
+.panel.active { display: block; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: 600; }
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: Arial, sans-serif;
+}
+textarea { min-height: 90px; resize: vertical; }
+.photo-preview {
+  display:none;
+  width:100%;
+  max-height:260px;
+  object-fit:contain;
+  margin-top:10px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.camera-label {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  padding:13px;
+  border:1px dashed #800000;
+  border-radius:8px;
+  color:#800000;
+  font-weight:bold;
+  cursor:pointer;
+}
+.camera-label input { display:none; }
+.action-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--success);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.action-btn:disabled { opacity: .6; cursor: wait; }
+.pass-box {
+  background: #f1f5f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  border-left: 5px solid var(--primary);
+  overflow-wrap: anywhere;
+}
+.pass-code {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--primary);
+  margin: 8px 0;
+}
+.result-box { margin-top: 20px; padding: 15px; border-radius: 8px; }
+.valid { background: #dcfce7; border: 1px solid #22c55e; }
+.invalid { background: #fee2e2; border: 1px solid #ef4444; }
+.small-note { color: #64748b; font-size: 13px; line-height: 1.5; }
+.history-details { white-space: pre-line; line-height: 1.7; }
+.empty-history { text-align: center; color: #64748b; padding: 20px 0; }
+#connection-status { font-size: 13px; text-align: center; color: #64748b; }
+@media (max-width: 380px) {
+  .container { padding: 14px; }
+  .tab-btn { font-size: 11px; padding: 10px 3px; }
+  h1 { font-size: 21px; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>SCHOOL SMARTPASS SYSTEM</h1>
+  <p id="connection-status">Connecting to Firebase...</p>
+  
+  <div class="nav-tabs">
+    <button type="button" class="tab-btn active" data-tab="teacher">Teacher Mode</button>
+    <button type="button" class="tab-btn" data-tab="guard">Guard Mode</button>
+    <button type="button" class="tab-btn" data-tab="history">Pass History</button>
+  </div>
+
+  <section id="teacher-panel" class="panel active">
+    <h2>Issue Digital Pass</h2>
+    <form id="teacher-form">
+      <div class="form-group">
+        <label for="teacher-name">Teacher's Name</label>
+        <input id="teacher-name" required autocomplete="name" placeholder="Enter teacher's name">
+      </div>
+
+      <div class="form-group">
+        <label for="student-name">Student Full Name</label>
+        <input id="student-name" required placeholder="Enter student's full name">
+      </div>
+
+      <div class="form-group">
+        <label for="student-section">Student Grade and Section / Class</label>
+        <input id="student-section" required placeholder="Enter grade and section">
+      </div>
+
+      <div class="form-group">
+        <label for="destination">Destination</label>
+        <input id="destination" required placeholder="Enter destination">
+      </div>
+
+      <div class="form-group">
+        <label for="other-reason">Other reason / additional details (optional)</label>
+        <textarea id="other-reason" maxlength="500" placeholder="Explain any other reason the student needs to leave..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Optional photo for verification</label>
+             <label class="camera-label" for="verification-photo">
+          📷 Take / Choose Photo (Optional)
+          <input id="verification-photo" type="file" accept="image/*" capture="environment">
+        </label>
+        <img id="photo-preview" class="photo-preview" alt="Selected verification photo preview">
+        <button id="remove-photo-btn" type="button" class="action-btn" style="display:none;background:#64748b;margin-top:8px">
+          Remove Photo
+        </button>
+      </div>
+
+      <button id="generate-btn" class="action-btn" type="submit">Generate Passcode</button>
+    </form>
+
+    <div id="pass-output" class="pass-box" hidden>
+      <p>Give this code to the student:</p>
+      <div id="display-code" class="pass-code"></div>
+      <p id="display-time"></p>
+      <button id="copy-code-btn" class="action-btn" type="button">Copy Passcode</button>
+    </div>
+  </section>
+
+  <section id="guard-panel" class="panel">
+    <h2>Verify Student Pass</h2>
+    <form id="guard-form">
+      <div class="form-group">
+        <label for="search-code">Enter Passcode</label>
+        <input id="search-code" required placeholder="e.g. PASS-A1B2" autocomplete="off">
+      </div>
+      <button id="check-btn" class="action-btn" style="background:var(--primary)" type="submit">
+        Check Passcode
+      </button>
+    </form>
+    <div id="verification-result" class="result-box" hidden>
+      <h3 id="result-status"></h3>
+      <div id="result-details" style="line-height:1.7"></div>
+    </div>
+  </section>
+
+  <section id="history-panel" class="panel">
+    <h2>Pass History</h2>
+    <p class="small-note">Pass records expire after seven days.</p>
+    <button id="refresh-history-btn" class="action-btn" style="background:var(--primary)" type="button">
+      Refresh History
+    </button>
+    <p id="history-count" class="small-note"></p>
+    <div id="history-list"></div>
+  </section>
+</div>
+
+<script type="module">
+import { initializeApp } from
+  "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+import {
+  getDatabase, ref, get, set, remove
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
+
+import {
+  getAuth, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+import {
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-storage.js";
+
+// Your SmartPass Firebase project
+const firebaseConfig = {
+  apiKey: "AIzaSyCWGpEhm5FZ5SyBihtn-yYdCDMJhF7uYAw",
+  authDomain: "smartpass-aee71.firebaseapp.com",
+  databaseURL: "https://smartpass-aee71-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smartpass-aee71",
+  storageBucket: "smartpass-aee71.firebasestorage.app",
+  messagingSenderId: "295141237170",
+  appId: "1:295141237170:web:9b58f4f5f85900b4a144ab",
+  measurementId: "G-RC9WS89JFF"
+};
+
+const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
+const passesRef = ref(db, "passes");
+
+const status = document.getElementById("connection-status");
+const generateBtn = document.getElementById("generate-btn");
+const checkBtn = document.getElementById("check-btn");
+const photoInput = document.getElementById("verification-photo");
+const photoPreview = document.getElementById("photo-preview");
+const removePhotoBtn = document.getElementById("remove-photo-btn");
+
+let selectedPhoto = null;
+let previewUrl = null;
+
+photoInput.addEventListener("change", () => {
+  selectedPhoto = photoInput.files && photoInput.files[0] ? photoInput.files[0] : null;
+
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+
+  if (!selectedPhoto) {
+    photoPreview.removeAttribute("src");
+    photoPreview.style.display = "none";
+    removePhotoBtn.style.display = "none";
+    return;
+  }
+
+  if (!selectedPhoto.type.startsWith("image/") || selectedPhoto.size > 5 * 1024 * 1024) {
+    alert("Please choose an image smaller than 5 MB.");
+    photoInput.value = "";
+    selectedPhoto = null;
+    return;
+  }
+
+  previewUrl = URL.createObjectURL(selectedPhoto);
+  photoPreview.src = previewUrl;
+  photoPreview.style.display = "block";
+  removePhotoBtn.style.display = "block";
+});
+
+removePhotoBtn.addEventListener("click", () => {
+  photoInput.value = "";
+  selectedPhoto = null;
+
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+
+  photoPreview.removeAttribute("src");
+  photoPreview.style.display = "none";
+  removePhotoBtn.style.display = "none";
+});
+
+let firebaseReady = false;
+
+// Both phones sign in before reading or writing passes.
+
+
+const authReady = signInAnonymously(auth)
+  .then(() => {
+    firebaseReady = true;
+    status.textContent = "Connected to SmartPass";
+    status.style.color = "#16a34a";
+  })
+  .catch(error => {
+    console.error("Firebase sign-in error:", error);
+    status.textContent =
+      "Connection failed. Check Firebase Authentication and Database Rules.";
+    status.style.color = "#dc2626";
+    throw error;
+  });
+
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(button => {
+    button.classList.toggle("active", button.dataset.tab === tab);
+  });
+
+  document.querySelectorAll(".panel").forEach(panel => {
+    panel.classList.toggle("active", panel.id === tab + "-panel");
+  });
+
+  if (tab === "guard") {
+    document.getElementById("verification-result").hidden = true;
+  }
+
+  if (tab === "history") renderHistory();
+}
+
+document.querySelectorAll(".tab-btn").forEach(button => {
+  button.addEventListener("click", () => switchTab(button.dataset.tab));
+});
+
+function makeCode() {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+
+  return "PASS-" + Array.from(bytes, b =>
+    b.toString(16).padStart(2, "0")
+  ).join("").toUpperCase();
+}
+
+async function createUniquePassCode() {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = makeCode();
+    const snapshot = await get(ref(db, "passes/" + code));
+
+    if (!snapshot.exists()) return code;
+  }
+
+  throw new Error("Could not create a unique code. Please try again.");
+}
+
+function formatDate(timestamp) {
+  return new Date(timestamp).toLocaleString();
+}
+
+async function cleanExpiredPasses(records) {
+  const now = Date.now();
+  const expired = [];
+
+  for (const [code, data] of Object.entries(records)) {
+    if (!data || !Number.isFinite(data.createdAt) ||
+        now - data.createdAt >= ONE_WEEK) {
+      expired.push(code);
+    }
+  }
+
+  await Promise.all(expired.map(code =>
+    remove(ref(db, "passes/" + code))
+  ));
+
+  return Object.fromEntries(
+    Object.entries(records).filter(([code]) => !expired.includes(code))
+  );
+}
+
+// TEACHER: generate and save the pass to Firebase
+document.getElementById("teacher-form").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  if (generateBtn.disabled) return;
+
+  generateBtn.disabled = true;
+  generateBtn.textContent = "Generating...";
+
+  try {
+    await authReady;
+
+    const teacher = document.getElementById("teacher-name").value.trim();
+    const name = document.getElementById("student-name").value.trim();
+    const section = document.getElementById("student-section").value.trim();
+    const destination = document.getElementById("destination").value.trim();
+    const otherReason = document.getElementById("other-reason").value.trim();
+
+    if (!teacher || !name || !section || !destination) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    const code = await createUniquePassCode();
+    const now = Date.now();
+
+    let photoUrl = "";
+
+    if (selectedPhoto) {
+      const imageRef = storageRef(
+        storage,
+        "pass-verification/" + code + "/" + Date.now()
+      );
+
+      const uploadResult = await uploadBytes(
+        imageRef,
+        selectedPhoto,
+        { contentType: selectedPhoto.type }
+      );
+
+      photoUrl = await getDownloadURL(uploadResult.ref);
+    }
+
+    const passData = {
+      code,
+      teacher,
+      name,
+      section,
+      destination,
+      otherReason,
+      photoUrl,
+      createdAt: now,
+      expiresAt: now + ONE_WEEK,
+      time: formatDate(now)
+    };
+
+    await set(ref(db, "passes/" + code), passData);
+
+    document.getElementById("display-code").textContent = code;
+    document.getElementById("display-time").textContent =
+      "Issued by " + teacher + " at " + formatDate(now);
+
+    document.getElementById("pass-output").hidden = false;
+
+    document.getElementById("student-name").value = "";
+    document.getElementById("student-section").value = "";
+    document.getElementById("destination").value = "";
+    document.getElementById("other-reason").value = "";
+
+    removePhotoBtn.click();
+
+  } catch (error) {
+    console.error("Generate pass error:", error);
+
+    alert("Could not generate the pass. " + error.message +
+      "\nCheck your internet connection and Firebase setup.");
+
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.textContent = "Generate Passcode";
+  }
+});
+
+// Copy the newly generated code
+document.getElementById("copy-code-btn").addEventListener("click", async () => {
+  const code = document.getElementById("display-code").textContent;
+
+  try {
+    await navigator.clipboard.writeText(code);
+    alert("Passcode copied: " + code);
+  } catch {
+    alert("Your passcode is " + code + ". Please copy it manually.");
+  }
+});
+
+function showResult(valid, heading, lines) {
+  const box = document.getElementById("verification-result");
+
+  box.hidden = false;
+  box.className = "result-box " + (valid ? "valid" : "invalid");
+
+  document.getElementById("result-status").textContent = heading;
+
+  const details = document.getElementById("result-details");
+  details.replaceChildren();
+
+  lines.forEach(([label, value]) => {
+    const line = document.createElement("div");
+    const strong = document.createElement("strong");
+
+    strong.textContent = label + ": ";
+
+    line.append(strong, document.createTextNode(String(value ?? "")));
+    details.appendChild(line);
+  });
+}
+
+function showInvalid(message) {
+  showResult(false, "INVALID PASS", [["Result", message]]);
+}
+
+// GUARD: look up the code in the shared Firebase database
+document.getElementById("guard-form").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  if (checkBtn.disabled) return;
+
+  checkBtn.disabled = true;
+  checkBtn.textContent = "Checking...";
+
+  try {
+    await authReady;
+
+    const code = document.getElementById("search-code")
+      .value.trim().toUpperCase();
+
+    if (!code) {
+      showInvalid("Please enter a passcode.");
+      return;
+    }
+
+    const snapshot = await get(ref(db, "passes/" + code));
+
+    if (!snapshot.exists()) {
+      showInvalid("This code does not exist or has expired.");
+      return;
+    }
+
+    const data = snapshot.val();
+
+    if (!Number.isFinite(data.createdAt) ||
+        Date.now() - data.createdAt >= ONE_WEEK) {
+      await remove(ref(db, "passes/" + code));
+
+      showInvalid("This pass has expired. Passes are valid for up to seven days.");
+      return;
+    }
+
+    showResult(true, "PASS VALID", [
+      ["Student", data.name],
+      ["Section", data.section],
+      ["Issued By", data.teacher],
+      ["Destination", data.destination],
+      ["Other Reason", data.otherReason || "Not specified"],
+      ["Departure Time", formatDate(data.createdAt)],
+      ["Expires", formatDate(data.createdAt + ONE_WEEK)]
+    ]);
+
+    if (data.photoUrl) {
+      const photoLink = document.createElement("a");
+
+      photoLink.href = data.photoUrl;
+      photoLink.target = "_blank";
+      photoLink.rel = "noopener noreferrer";
+      photoLink.textContent = "View optional verification photo";
+      photoLink.style.display = "inline-block";
+      photoLink.style.marginTop = "10px";
+
+      document.getElementById("result-details").appendChild(photoLink);
+    }
+
+  } catch (error) {
+    console.error("Verify pass error:", error);
+
+    showInvalid("Unable to connect to Firebase. Check your internet and Firebase setup.");
+
+  } finally {
+    checkBtn.disabled = false;
+    checkBtn.textContent = "Check Passcode";
+  }
+});
+
+// HISTORY: read the shared Firebase records
+async function renderHistory() {
+  const list = document.getElementById("history-list");
+  const count = document.getElementById("history-count");
+
+  list.replaceChildren();
+  count.textContent = "Loading history...";
+
+  try {
+    await authReady;
+
+    const snapshot = await get(passesRef);
+    const allRecords = snapshot.exists() ? snapshot.val() : {};
+    const records = await cleanExpiredPasses(allRecords);
+
+    const sorted = Object.values(records)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    count.textContent = sorted.length +
+      (sorted.length === 1 ? " saved pass" : " saved passes");
+
+    if (sorted.length === 0) {
+      const empty = document.createElement("p");
+
+      empty.className = "empty-history";
+      empty.textContent = "No pass history available.";
+
+      list.appendChild(empty);
+      return;
+    }
+
+    sorted.forEach(data => {
+      const card = document.createElement("div");
+      card.className = "pass-box";
+
+      const code = document.createElement("div");
+      code.className = "pass-code";
+      code.textContent = data.code || "";
+
+      const details = document.createElement("p");
+      details.className = "history-details";
+
+      details.textContent =
+        "Student: " + (data.name || "") + "\n" +
+        "Section: " + (data.section || "") + "\n" +
+        "Teacher: " + (data.teacher || "") + "\n" +
+        "Destination: " + (data.destination || "") + "\n" +
+        "Other reason: " + (data.otherReason || "Not specified") + "\n" +
+        "Issued: " + formatDate(data.createdAt) + "\n" +
+        "Expires: " + formatDate(data.createdAt + ONE_WEEK);
+
+      card.append(code, details);
+      list.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error("History error:", error);
+    count.textContent = "Could not load history. Check Firebase setup.";
+  }
+}
+
+document.getElementById("refresh-history-btn")
+  .addEventListener("click", renderHistory);
+
+// Show startup errors instead of silently failing.
+authReady.catch(() => {});
+</script>
+</body>
+</html>
+
